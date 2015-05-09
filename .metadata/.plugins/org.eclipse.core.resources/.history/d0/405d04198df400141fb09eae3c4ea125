@@ -1,0 +1,22 @@
+package com.example.magisterka;
+
+import android.content.Context;
+import 	android.database.sqlite.*;
+//import android.database.sqlite.SQLiteDatabase;
+
+public class SqlHelper extends SQLiteOpenHelper{
+    //The Android's default system path of your application database.
+    private static String DB_PATH = "/data/data/YOUR_PACKAGE/databases/";
+ 
+    private static String DB_NAME = "test1";
+ 
+    private SQLiteDatabase myDataBase; 
+ 
+    private final Context myContext;
+    
+    public SqlHelper(Context context) {
+    	 
+    	super(context, DB_NAME, null, 1);
+        this.myContext = context;
+    }
+}

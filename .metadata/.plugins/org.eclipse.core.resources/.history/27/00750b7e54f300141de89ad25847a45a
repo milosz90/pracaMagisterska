@@ -1,0 +1,12 @@
+package com.example.magisterka;
+import android.util.AttributeSet;
+import android.widget.ImageView;
+import android.content.Context;
+
+public class InventoryItem extends ImageView {
+	private int id;
+	
+	public InventoryItem(Context context, AttributeSet attrs, int defaultStyle) {
+		super(context, attrs, defaultStyle);
+	}
+}

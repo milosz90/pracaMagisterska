@@ -1,0 +1,516 @@
+package com.example.magisterka;
+
+import java.io.IOException;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Iterator;
+
+import android.app.Activity;
+import android.app.ActionBar;
+import android.opengl.Visibility;
+import android.os.Bundle;
+import android.os.Handler;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.MotionEvent;
+import android.view.View;
+
+import android.widget.*;
+import android.widget.TableRow.LayoutParams;
+import android.view.*;
+
+import android.content.*;
+import android.view.View.DragShadowBuilder;
+import android.view.View.OnDragListener;
+import android.view.View.OnTouchListener;
+import android.view.View.OnClickListener;
+import android.view.View.OnLongClickListener;
+
+import android.content.*;
+import android.content.res.Resources;
+import android.database.Cursor;
+import android.database.SQLException;
+import android.database.sqlite.SQLiteDatabase;
+import android.graphics.Color;
+import android.graphics.drawable.Drawable;
+import android.os.Vibrator;
+import android.util.DisplayMetrics;
+import 	android.view.ViewGroup.MarginLayoutParams;
+
+public class Inventory extends Activity {
+	private ContentValues slotNames;
+	
+	private String idPlayer = "1";
+	
+	private int maxItemsBackpack = 8;
+	private int maxItemsInUse = 3;
+	private int bodyItems = 5;
+	
+	private int itemsInRow = 4;
+	private float inventoryHeight = 0.5f;
+	private float activeItemsHeight = 0.4f;
+	
+	private List<InventoryItem> listItems;//przedmioty
+	private List<View> listBackpackSlot;
+	private List<View> listGadgetsSlot;
+	private List<View> listBodySlot;
+	
+	private SqlHelper sqlReader;
+	
+	@Override
+	protected void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		setContentView(R.layout.activity_inventory);
+		
+		//nazwy slotow uzywanych itemow
+		slotNames = new ContentValues();
+		int i = 0;
+		slotNames.put("head", i);i++;
+		slotNames.put("body", i);i++;
+		slotNames.put("rHand", i);i++;
+		slotNames.put("lHand", i);i++;
+		slotNames.put("legs", i);i++;
+		
+		slotNames.put("gadgets", i);//zawsze na koñcu!!!!!!!!
+		//slotNames[1] ="body";
+		//slotNames[2] ="rHand";
+		//slotNames[3] ="lHand";
+		//slotNames[4] ="legs";
+		//////////////
+		
+		getActionBar().hide();
+		
+		TextView txt = (TextView)findViewById(R.id.txtItemDescription);
+		txt.setText("qwwwqw");
+		//txt.setText(slotNames[2]);
+		listItems = new ArrayList<InventoryItem>();
+		listBackpackSlot = new ArrayList<View>();
+		listGadgetsSlot = new ArrayList<View>();
+		listBodySlot = new ArrayList<View>();
+		
+		//wielkosc okna - dopasowanie skali
+		DisplayMetrics metrics = new DisplayMetrics();
+		getWindowManager().getDefaultDisplay().getMetrics(metrics);
+	    int width = metrics.widthPixels;
+	    int height = metrics.heightPixels;
+	    
+	    
+		//wczytywanie z bazy danych///////////////////////////////
+        sqlReader = new SqlHelper(this);
+        sqlReader.openDataBase();////////////////
+        		
+        //plecak////////
+		TableLayout table = CreateItemsTable(width, height);
+		RelativeLayout inventoryPlace = (RelativeLayout)findViewById(R.id.mainWindow);
+		inventoryPlace.addView(table);
+		
+		//wyposazenie/////
+		TableLayout tableItemInUse = CreateItemsInUseTable(width, height);
+		inventoryPlace.addView(tableItemInUse);
+		
+        sqlReader.close();/////////////////////////////
+        //koniec wczytywania z bazy danych//////////////////////////
+	}
+
+	public void SetPlayer(){
+		
+	}
+	public void SetInventoryParams(RelativeLayout layout){//do orania - nigdy nie u¿ywane
+		DisplayMetrics metrics = new DisplayMetrics();
+		getWindowManager().getDefaultDisplay().getMetrics(metrics);
+	    int width = metrics.widthPixels;
+	    int height = metrics.heightPixels;
+	    
+	    RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(width, 
+	    		(int)(height * inventoryHeight));
+	    params.topMargin = ((int)((1 - inventoryHeight) * height));
+
+	    layout.setLayoutParams(params);
+	}
+	
+	public TableLayout CreateItemsInUseTable(int width, int height){
+		TableLayout result = new TableLayout(this);
+		
+		//parametry tablicy items
+	    RelativeLayout.LayoutParams paramsTable = new RelativeLayout.LayoutParams(width, 
+	    		(int)(height * activeItemsHeight));
+	    paramsTable.topMargin = 0;
+	    
+	    //parametry wiersza
+	  		TableLayout.LayoutParams paramsRow = new TableLayout.LayoutParams(LayoutParams.WRAP_CONTENT,
+	  				LayoutParams.WRAP_CONTENT);
+	  		paramsRow.setMargins(10, 10, 10, 10);
+	  		
+  		//parametry okienka na przedmioty
+        TableRow.LayoutParams paramsItemPlace = new TableRow.LayoutParams(100,//musi miec staly rozmiar na wypadek
+        		100);															//pustego plecaka - psuje rozklad
+        paramsItemPlace.rightMargin = 10;
+          
+          
+        result.setLayoutParams(paramsTable);
+          
+        TableRow row = new TableRow(this);
+      	row.setLayoutParams(paramsRow);
+        result.addView(row);
+        
+        Cursor c;
+        InventoryItem item;
+        RelativeLayout rl;
+        //ekwipunek na sobie
+        for(int j = 0; j < bodyItems; j++){
+    		rl = GetItemSlot(paramsItemPlace, maxItemsBackpack + j);
+    		c = sqlReader.Query("select idItem, _id from items_in_Use where idPlayer = ? and slotNumber = ?",
+            		new String[]{idPlayer, Integer.toString(j)});//do orania, sprawdzanie Playera
+        	if(c.moveToFirst()){
+        		SetText("na sobie cos jest");
+        		item = (InventoryItem)AddItem(c.getInt(c.getColumnIndex("idItem")));
+        		listItems.add(item);
+        		item.SetSlotNumber(maxItemsBackpack + j);
+        		item.Set_id(c.getInt(c.getColumnIndex("_id")));
+        		item.SetInUse(true);
+        		rl.addView(item);
+        	}
+        	listBodySlot.add(rl);
+        	row.addView(rl);
+            c.close();
+        }
+        //gadgety
+        row = new TableRow(this);
+      	row.setLayoutParams(paramsRow);
+        result.addView(row);
+        for(int j = 0; j < maxItemsInUse; j++){
+    		rl = GetItemSlot(paramsItemPlace, maxItemsBackpack + j + bodyItems);
+        	c = sqlReader.Query("select idItem, _id from items_in_Use where idPlayer = ? and slotNumber = ?",
+            		new String[]{idPlayer, Integer.toString(j + bodyItems)});//do orania, sprawdzanie Playera
+        	if(c.moveToFirst()){
+        		item = (InventoryItem)AddItem(c.getInt(c.getColumnIndex("idItem")));
+        		listItems.add(item);
+        		item.SetSlotNumber(maxItemsBackpack + j + bodyItems);
+        		item.Set_id(c.getInt(c.getColumnIndex("_id")));
+        		item.SetInUse(true);
+        		rl.addView(item);
+        	}
+        	listGadgetsSlot.add(rl);
+        	row.addView(rl);
+            c.close();
+    	}
+        return result;
+	}
+
+	public TableLayout CreateItemsTable(int width, int height){   
+	    //parametry tablicy items
+	    RelativeLayout.LayoutParams paramsTable = new RelativeLayout.LayoutParams(width, 
+	    		(int)(height * inventoryHeight));
+	    paramsTable.topMargin = ((int)((1 - inventoryHeight) * height));
+	    
+	    //parametry wiersza
+		TableLayout.LayoutParams paramsRow = new TableLayout.LayoutParams(LayoutParams.WRAP_CONTENT,
+				LayoutParams.WRAP_CONTENT);
+		paramsRow.setMargins(10, 10, 10, 10);
+		
+		//parametry okienka na przedmioty
+        TableRow.LayoutParams paramsItemPlace = new TableRow.LayoutParams(100,//musi miec staly rozmiar na wypadek
+        		100);															//pustego plecaka - psuje rozklad
+        paramsItemPlace.rightMargin = 10;
+		
+        
+		TableLayout layout = new TableLayout(this);
+		layout.setLayoutParams(paramsTable);
+        //layout.setStretchAllColumns(true);
+		
+        TableRow row;
+        InventoryItem item;
+        Cursor c;
+        
+        int itemsCount = 0;
+        for(;;){
+        	row = new TableRow(this);
+        	row.setLayoutParams(paramsRow);
+        	layout.addView(row);
+        	for(int j = 0; j < itemsInRow; j++){
+        		RelativeLayout rl = new RelativeLayout(this);
+        		
+        		rl.setLayoutParams(paramsItemPlace);
+        		rl.setBackgroundResource(R.drawable.black);		
+        		rl.setOnDragListener(new MyDragListener());
+        		rl.setTag(itemsCount);
+        		
+            	c = sqlReader.Query("select idItem, _id from backpack where idPlayer = ? and slotNumber = ?",
+                		new String[]{idPlayer, Integer.toString(itemsCount)});//do orania, sprawdzanie Playera
+            	if(c.moveToFirst()){
+            		item = (InventoryItem)AddItem(c.getInt(c.getColumnIndex("idItem")));
+            		listItems.add(item);
+            		item.SetSlotNumber(itemsCount);
+            		item.Set_id(c.getInt(c.getColumnIndex("_id")));
+            		item.SetInUse(false);
+            		rl.addView(item);
+            	}
+            	itemsCount++;
+            	
+            	listBackpackSlot.add(rl);
+            	row.addView(rl);
+            	
+            	if(itemsCount == maxItemsBackpack){//liczymy ile slotow dodalismy
+                    c.close();
+                    return layout;
+            	}
+        	}
+        }
+	}
+	
+	public RelativeLayout GetItemSlot(TableRow.LayoutParams paramsItemPlace, int tag){
+		RelativeLayout rl = new RelativeLayout(this);
+		rl.setLayoutParams(paramsItemPlace);
+		rl.setBackgroundResource(R.drawable.black);		
+		rl.setOnDragListener(new MyDragListener());
+		rl.setTag(tag);
+		return rl;
+	}
+	
+	public View AddItem(int id){
+		InventoryItem item = new InventoryItem(this, id);
+
+		SqlHelper dReader = new SqlHelper(this);
+		dReader.openDataBase();
+		Cursor cursor = dReader.Query("select name, image, possibleslot from items where _id = ?", new String[]{Integer.toString(id)});
+		if(cursor.moveToFirst()){
+			item.SetName(cursor.getString(cursor.getColumnIndex("name")));
+			
+			String resName = (cursor.getString(cursor.getColumnIndex("image")));
+			int resId = getResources().getIdentifier(resName , "drawable", getPackageName());
+			item.setImageResource(resId);
+			
+			item.SetAllowSlot(cursor.getString(cursor.getColumnIndex("possibleSlot")));
+		}
+		cursor.close();
+		dReader.close();
+		
+		//item.setImageResource(R.drawable.ic_launcher);
+		
+		item.setOnLongClickListener(new MyLongClickListener());
+		item.setOnClickListener(new MyTouchListener());
+		return item;
+	}
+	
+	public void btnSave(View view){
+		SaveInventoryInDatabase();
+	}
+	
+	public void SaveInventoryInDatabase(){//do orania - najpierw kasuje potem zapisuje nowe rowy w bazie
+		Iterator<InventoryItem> i = listItems.iterator();
+		InventoryItem item;
+		SqlHelper sql = new SqlHelper(this);
+		sql.openDataBaseWrite();
+		sql.DeleteRow("items_in_use", "idPlayer = ?", new String[]{idPlayer});
+		sql.DeleteRow("backpack", "idPlayer = ?", new String[]{idPlayer});
+		while(i.hasNext()){
+			ContentValues newValues = new ContentValues();
+			item = (InventoryItem)i.next();
+			newValues.put("idplayer", Integer.parseInt(idPlayer));
+			newValues.put("idItem", item.GetIdItem());
+			//newValues.put("_id", item.Get_id());//do orania - czy potrzebne jest to samo id co by³o wczeœniej?
+													//czy mo¿e siê zmieniaæ za ka¿dym razem?
+													//WALI SIE JAK JEST WIECEJ PLAYEROW!!!
+			if(item.IsInUse()){
+				newValues.put("slotNumber",Integer.toString(item.GetSlotNumber() - maxItemsBackpack));
+				sql.Insert("items_in_use", null, newValues);
+			}else{
+				newValues.put("slotNumber",Integer.toString(item.GetSlotNumber()));
+				sql.Insert("backpack", null, newValues);
+			}
+		}
+		sql.close();
+	}
+	
+	@Override
+	public boolean onCreateOptionsMenu(Menu menu) {
+		// Inflate the menu; this adds items to the action bar if it is present.
+		getMenuInflater().inflate(R.menu.inventory, menu);
+		return true;
+	}
+
+	@Override
+	public boolean onOptionsItemSelected(MenuItem item) {
+		// Handle action bar item clicks here. The action bar will
+		// automatically handle clicks on the Home/Up button, so long
+		// as you specify a parent activity in AndroidManifest.xml.
+		int id = item.getItemId();
+		if (id == R.id.action_settings) {
+			return true;
+		}
+		return super.onOptionsItemSelected(item);
+	}
+	
+	@Override
+	public void onStop(){
+		super.onStop();
+		SaveInventoryInDatabase();
+	}
+	//do orania - debugowanie
+	public void SetText(String s){
+		TextView txt = (TextView)findViewById(R.id.txtItemDescription);
+		txt.setText(s);
+	}
+	
+	class MyDragListener implements OnDragListener {
+		@Override
+		public boolean onDrag(View view, DragEvent event){
+			//int action = event.getAction();
+	    	final View v = (View) event.getLocalState();
+		    switch (event.getAction()) {
+		    case DragEvent.ACTION_DROP://do orania - za du¿o rzutowania (InventoryItem)View
+		    	v.post(new Runnable() {
+		    		  public void run() {
+		    		    v.setVisibility(View.VISIBLE);
+		    		  }
+		    		});
+		    	ViewGroup owner = (ViewGroup) v.getParent();
+		    	owner.removeView(v);
+		    	
+		    	boolean b = ((InventoryItem)v).IsInUse();
+		    	if (((RelativeLayout)view).getChildCount() > 0)
+		    	{
+			    	View replaceItem = ((RelativeLayout)view).getChildAt(0);
+			    	((RelativeLayout)view).removeView(replaceItem);
+			    	owner.addView(replaceItem, 0);
+			    	
+			    	b = ((InventoryItem)replaceItem).IsInUse();//zmiana backpack/inUse
+			    	((InventoryItem)replaceItem).SetInUse(((InventoryItem)v).IsInUse());
+			    		
+			    	((InventoryItem)replaceItem).SetSlotNumber((Integer)owner.getTag());
+		    	}
+		    	
+		    	if((Integer)view.getTag() >= maxItemsBackpack)//zmiana backpack/inUse
+		    		((InventoryItem)v).SetInUse(true);
+		    	else
+		    		((InventoryItem)v).SetInUse(false);
+		    	
+		    	((RelativeLayout)view).addView(v);
+		    	((InventoryItem)v).SetSlotNumber((Integer)view.getTag());
+		      break;
+		    case DragEvent.ACTION_DRAG_ENDED:
+		    	v.post(new Runnable() {
+		    		  public void run() {
+		    		    v.setVisibility(View.VISIBLE);
+				    	Iterator<View> itr = listGadgetsSlot.iterator();
+				    	while(itr.hasNext()) {
+				    		itr.next().setVisibility(View.VISIBLE);
+				    	}
+				    	itr = listBodySlot.iterator();
+				    	while(itr.hasNext()) {
+				    		itr.next().setVisibility(View.VISIBLE);
+				    	}
+		    		  }
+		    		});
+
+		    		
+		      break;
+		    case DragEvent.ACTION_DRAG_STARTED:
+		      break;
+		    case DragEvent.ACTION_DRAG_ENTERED:
+		      break;
+		    case DragEvent.ACTION_DRAG_EXITED:   
+		      break;
+		    
+		      default:
+		    	  break;
+		    }
+		    return true;
+		}
+	}
+	
+	class MyTouchListener implements OnClickListener{
+		@Override
+		public void onClick(View v) {
+				TextView txt = (TextView)findViewById(R.id.txtItemDescription);
+				InventoryItem item = (InventoryItem)v;
+				String description = item.GetName() + ", slot: " + Integer.toString(item.GetSlotNumber()) + 
+						"  allow Slot: " + item.GetAllowSlot();
+				if(item.IsInUse())
+					description += " is in use";
+				else
+					description += " not in use";
+				
+				txt.setText(description);
+		}
+	}
+	
+	class MyLongClickListener implements OnLongClickListener{
+		@Override
+		public boolean onLongClick(View view)
+		{
+
+			//StartDrag/////////////////
+			ClipData data = ClipData.newPlainText("", "");
+		    DragShadowBuilder shadowBuilder = new View.DragShadowBuilder(view);
+			view.startDrag(data, shadowBuilder, view, 0);
+			view.setVisibility(View.INVISIBLE);
+			 
+			Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+			v.vibrate(25);
+			/////////////////////////////
+			
+			//widzialnosc elementow//////
+			int availableSlot = slotNames.getAsInteger(((InventoryItem)view).GetAllowSlot());
+			List<View> listInvisible = new ArrayList<View>();
+			
+			if(availableSlot < bodyItems){//item do body
+			    Iterator<View> itr = listGadgetsSlot.iterator();
+			    while(itr.hasNext()) {
+			    	listInvisible.add(itr.next());
+			    	//SetViewInvisible(itr.next());
+			    	//itr.next().setVisibility(View.INVISIBLE);
+			    }
+			    itr = listBodySlot.iterator();
+			    while(itr.hasNext()) {
+			    	View tmp = itr.next();
+			    	if((Integer)tmp.getTag() != availableSlot + maxItemsBackpack)
+			    		listInvisible.add(tmp);
+			    		//SetViewInvisible(tmp);
+						//tmp.setVisibility(View.INVISIBLE);
+			    }
+			      
+			}else{//gadget
+				Iterator<View> itr = listBodySlot.iterator();
+				while(itr.hasNext()) {
+					listInvisible.add(itr.next());
+					//SetViewInvisible(itr.next());
+					//tmp.setVisibility(View.INVISIBLE);
+			      }
+			}
+			/////////////////////////////
+			return true;
+		}
+	}
+	
+	public void StartDrag(View view)
+	{
+		ClipData data = ClipData.newPlainText("", "");
+	    DragShadowBuilder shadowBuilder = new View.DragShadowBuilder(view);
+		view.startDrag(data, shadowBuilder, view, 0);
+		view.setVisibility(View.INVISIBLE);
+		 
+		Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+		v.vibrate(25);
+	}
+	
+	public void SetViewVisible(View _view)
+	{
+		final View view = _view;
+		view.post(new Runnable(){
+			 public void run() {
+				 view.setVisibility(View.VISIBLE);
+			 }
+		});
+	}
+	public void SetViewInvisible(View _view)
+	{
+		final View view = _view;
+		view.post(new Runnable(){
+			 public void run() {
+				 view.setVisibility(View.INVISIBLE);
+			 }
+		});
+	}
+}

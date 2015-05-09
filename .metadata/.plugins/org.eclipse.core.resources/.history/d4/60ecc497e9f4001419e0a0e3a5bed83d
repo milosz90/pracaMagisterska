@@ -1,0 +1,22 @@
+package com.example.magisterka;
+import android.widget.ImageView;
+import android.content.Context;
+
+public class InventoryItem extends ImageView {
+	private int id;
+	private String name;
+	private int slotNumber;
+	
+	public InventoryItem(Context context, int _id) {
+		super(context);
+		id = _id;
+	}
+	
+	public void SetName(String s){
+		name = s;
+	}
+	public String GetName(){
+		return name;
+	}
+	
+}

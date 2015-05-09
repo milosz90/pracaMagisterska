@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">magisterka</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="action_settings">Settings</string>
+    <string name="title_activity_code_locker">CodeLocker</string>
+    <string name="title_activity_inventory">Inventory</string>
+
+    <color name="Red">#ffff0000</color>
+
+    <string name="title_activity_test">Test</string>
+
+</resources>

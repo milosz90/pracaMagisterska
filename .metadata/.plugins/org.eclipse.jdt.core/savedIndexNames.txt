@@ -1,0 +1,5 @@
+INDEX VERSION 1.126+D:\studia\magisterka\.metadata\.plugins\org.eclipse.jdt.core
+3572966769.index
+2439214643.index
+2257908718.index
+3036364679.index
